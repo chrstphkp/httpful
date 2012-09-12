@@ -38,6 +38,7 @@ class Request
            $serialize_payload_method = self::SERIALIZE_PAYLOAD_SMART,
            $username,
            $password,
+           $useDigest               = false,
            $serialized_payload,
            $payload,
            $parse_callback,
@@ -130,6 +131,14 @@ class Request
     {
         return isset($this->password) && isset($this->username);
     }
+    
+    /**
+     * @return bool Is this request setup for digest auth?
+     */
+    public function hasDigestAuth()
+    {
+        return isset($this->password) && isset($this->username) && $this->useDigest == TRUE;
+    } 
 
     /**
      * If the response is a 301 or 302 redirect, automatically
@@ -217,6 +226,20 @@ class Request
     public function authenticateWithBasic($username, $password)
     {
         return $this->basicAuth($username, $password);
+    }
+    
+    /**
+     * User Digest Auth.
+     * @return Request this
+     * @param string $username
+     * @param string $password
+     */
+    public function digestAuth($username, $password)
+    {
+        $this->username = $username;
+        $this->password = $password;
+        $this->useDigest = true;
+        return $this;
     }
 
     /**
@@ -673,8 +696,12 @@ class Request
 
         curl_setopt($ch, CURLOPT_CUSTOMREQUEST, $this->method);
 
-        if ($this->hasBasicAuth()) {
+        if ($this->hasBasicAuth() || $this->hasDigestAuth()) {
             curl_setopt($ch, CURLOPT_USERPWD, $this->username . ':' . $this->password);
+        }
+        
+        if ($this->hasDigestAuth()) {
+            curl_setopt($ch, CURLOPT_HTTPAUTH, CURLAUTH_DIGEST);
         }
 
         if ($this->hasClientSideCert()) {
